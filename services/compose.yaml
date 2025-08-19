@@ -1,0 +1,45 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    container_name: ecom_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+
+  usersvc:
+    build:
+      context: ../services/usersvc
+    environment:
+      - PG_URL=postgres://postgres:postgres@db:5432/ecom_users?sslmode=disable
+    ports:
+      - "8081:8081"
+    depends_on:
+      - db
+    restart: on-failure
+
+  productsvc:
+    build:
+      context: ../services/productsvc
+    environment:
+      - PG_URL=postgres://postgres:postgres@db:5432/ecom_products?sslmode=disable
+    ports:
+      - "8082:8082"
+    depends_on:
+      - db
+    restart: on-failure
+
+  ordersvc:
+    build:
+      context: ../services/ordersvc
+    environment:
+      - PG_URL=postgres://postgres:postgres@db:5432/ecom_orders?sslmode=disable
+    ports:
+      - "8083:8083"
+    depends_on:
+      - db
+    restart: on-failure

@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS orders(
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  qty INT NOT NULL,
+  total BIGINT NOT NULL
+);
