@@ -1,13 +1,8 @@
-FROM golang:1.22 AS build
-WORKDIR /src
-COPY go.mod .
-RUN go mod download
+FROM golang:1.22 AS builder
+WORKDIR /app
 COPY . .
 RUN go build -o app .
 
-FROM gcr.io/distroless/base-debian12:nonroot
-WORKDIR /app
-COPY --from=build /src/app .
-EXPOSE 8083
-USER nonroot
-CMD ["./app"]
+FROM gcr.io/distroless/base-debian12
+COPY --from=builder /app/app /app/app
+CMD ["/app/app"]
