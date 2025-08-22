@@ -1,14 +1,13 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_BUILDKIT = '1'
-        COMPOSE_DOCKER_CLI_BUILD = '1'
+    options {
+        timestamps()
+        ansiColor('xterm')
     }
 
-    options {
-        ansiColor('xterm')
-        timestamps()
+    environment {
+        DOCKER_BUILDKIT = "1"
     }
 
     stages {
@@ -35,10 +34,14 @@ pipeline {
                     sh '''
                       echo "🔍 Running unit tests in each service..."
 
-                      for svc in usersvc productsvc ordersvc; do
-                        echo "➡️ Testing $svc ..."
-                        docker run --rm -v $PWD/$svc:/app -w /app golang:1.22 go test ./...
-                      done
+                      echo "➡️ Testing usersvc ..."
+                      docker run --rm -v $PWD/usersvc:/app -w /app golang:1.22 go test ./...
+
+                      echo "➡️ Testing productsvc ..."
+                      docker run --rm -v $PWD/productsvc:/app -w /app golang:1.22 go test ./...
+
+                      echo "➡️ Testing ordersvc ..."
+                      docker run --rm -v $PWD/ordersvc:/app -w /app golang:1.22 go test ./...
                     '''
                 }
             }
@@ -60,7 +63,7 @@ pipeline {
                 ansiColor('xterm') {
                     sh '''
                       echo "⏳ Waiting for services to become healthy..."
-                      sleep 15
+                      sleep 20
                     '''
                 }
             }
@@ -70,7 +73,7 @@ pipeline {
             steps {
                 ansiColor('xterm') {
                     sh '''
-                      echo "🧪 Running smoke tests..."
+                      echo "🧪 Running integration tests..."
 
                       curl -f http://localhost:8081/healthz || exit 1
                       curl -f http://localhost:8082/healthz || exit 1
@@ -84,15 +87,18 @@ pipeline {
 
         stage('Push images (optional)') {
             when {
-                expression { return env.BRANCH_NAME == 'main' }
+                expression { return false } // enable later if pushing to registry
             }
             steps {
                 ansiColor('xterm') {
                     sh '''
-                      echo "📦 Pushing images to Docker Hub (if configured)..."
-                      # Example:
-                      # docker tag go-ecommerce-usersvc your-dockerhub-user/go-ecommerce-usersvc:latest
-                      # docker push your-dockerhub-user/go-ecommerce-usersvc:latest
+                      echo "📦 Pushing Docker images to registry..."
+                      docker tag go-ecommerce-usersvc myrepo/go-ecommerce-usersvc:latest
+                      docker tag go-ecommerce-productsvc myrepo/go-ecommerce-productsvc:latest
+                      docker tag go-ecommerce-ordersvc myrepo/go-ecommerce-ordersvc:latest
+                      docker push myrepo/go-ecommerce-usersvc:latest
+                      docker push myrepo/go-ecommerce-productsvc:latest
+                      docker push myrepo/go-ecommerce-ordersvc:latest
                     '''
                 }
             }
@@ -102,15 +108,17 @@ pipeline {
     post {
         always {
             ansiColor('xterm') {
-                sh 'docker compose -f docker-compose.yml down -v || true'
+                sh '''
+                  docker compose -f docker-compose.yml down -v || true
+                '''
             }
-            echo '✅ Cleanup finished'
+            echo "✅ Cleanup finished"
         }
         failure {
-            echo '❌ Pipeline failed'
+            echo "❌ Pipeline failed"
         }
         success {
-            echo '🎉 Pipeline succeeded'
+            echo "🎉 Pipeline succeeded"
         }
     }
 }
