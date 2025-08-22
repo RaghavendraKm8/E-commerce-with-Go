@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16
@@ -13,7 +15,7 @@ services:
 
   usersvc:
     build:
-      context: ./usersvc
+      context: ./services/usersvc
       dockerfile: Dockerfile
     container_name: usersvc
     ports:
@@ -25,7 +27,7 @@ services:
 
   productsvc:
     build:
-      context: ./productsvc
+      context: ./services/productsvc
       dockerfile: Dockerfile
     container_name: productsvc
     ports:
@@ -37,7 +39,7 @@ services:
 
   ordersvc:
     build:
-      context: ./ordersvc
+      context: ./services/ordersvc
       dockerfile: Dockerfile
     container_name: ordersvc
     ports:
@@ -46,6 +48,8 @@ services:
       - PG_URL=postgres://postgres:postgres@db:5432/ordersvc?sslmode=disable
     depends_on:
       - db
+      - usersvc
+      - productsvc
 
 volumes:
   pgdata: {}
