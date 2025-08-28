@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "your-dockerhub-username"
+        DOCKER_HUB_USER = "your-dockerhub-username"
+        DOCKER_HUB_PASS = credentials('docker-hub-password') // Jenkins credential ID
     }
 
     stages {
@@ -15,13 +16,17 @@ pipeline {
         stage('Build Go Services') {
             steps {
                 script {
-                    def services = ["ordersvc", "productsvc", "usersvc"]
-
-                    for (service in services) {
-                        dir("services/${service}") {
-                            bat "go mod tidy"
-                            bat "go build -o service.exe ."
-                        }
+                    dir("services/ordersvc") {
+                        bat "go mod tidy"
+                        bat "go build -o service.exe ."
+                    }
+                    dir("services/productsvc") {
+                        bat "go mod tidy"
+                        bat "go build -o service.exe ."
+                    }
+                    dir("services/usersvc") {
+                        bat "go mod tidy"
+                        bat "go build -o service.exe ."
                     }
                 }
             }
@@ -30,12 +35,14 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    def services = ["ordersvc", "productsvc", "usersvc"]
-
-                    for (service in services) {
-                        dir("services/${service}") {
-                            bat "docker build -t %REGISTRY%/${service}:latest ."
-                        }
+                    dir("services/ordersvc") {
+                        bat "docker build -t ${DOCKER_HUB_USER}/ordersvc:latest ."
+                    }
+                    dir("services/productsvc") {
+                        bat "docker build -t ${DOCKER_HUB_USER}/productsvc:latest ."
+                    }
+                    dir("services/usersvc") {
+                        bat "docker build -t ${DOCKER_HUB_USER}/usersvc:latest ."
                     }
                 }
             }
@@ -44,13 +51,19 @@ pipeline {
         stage('Push Docker Images') {
             steps {
                 script {
-                    def services = ["ordersvc", "productsvc", "usersvc"]
+                    bat "docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}"
+                    bat "docker push ${DOCKER_HUB_USER}/ordersvc:latest"
+                    bat "docker push ${DOCKER_HUB_USER}/productsvc:latest"
+                    bat "docker push ${DOCKER_HUB_USER}/usersvc:latest"
+                }
+            }
+        }
 
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-                        for (service in services) {
-                            bat "docker push %REGISTRY%/${service}:latest"
-                        }
-                    }
+        stage('Deploy with Docker Compose') {
+            steps {
+                script {
+                    bat "docker-compose down || echo 'No containers to stop'"
+                    bat "docker-compose up -d"
                 }
             }
         }
