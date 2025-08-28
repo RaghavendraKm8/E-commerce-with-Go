@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        go 'Go'         // configure Go in Jenkins tools
+        go 'Go'    // configure Go in Jenkins tools
     }
 
     environment {
