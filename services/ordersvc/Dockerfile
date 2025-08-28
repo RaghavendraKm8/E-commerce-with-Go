@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1
-FROM golang:1.21 AS builder
+# Use Go 1.22 instead of 1.21
+FROM golang:1.22 AS builder
 
 WORKDIR /app
 COPY . .
@@ -7,10 +7,11 @@ COPY . .
 RUN go mod tidy
 RUN go build -o service .
 
-# final image
+# Final minimal image
 FROM debian:bookworm-slim
 WORKDIR /app
-COPY --from=builder /app/service /app/service
+
+COPY --from=builder /app/service .
 
 EXPOSE 8080
 CMD ["./service"]
