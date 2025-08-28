@@ -8,54 +8,51 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'master',
-                    url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
+                checkout scm
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Go Services') {
             steps {
                 script {
-                    def services = ["products-api", "orders-api", "payments-api"]
+                    def services = ["ordersvc", "productsvc", "usersvc"]
 
                     for (service in services) {
                         dir("services/${service}") {
-                            bat "docker build -t %REGISTRY%/${service}:latest ."
+                            sh "go mod tidy"
+                            sh "go build -o service ."
                         }
                     }
                 }
             }
         }
 
-        stage('Push Images') {
+        stage('Build Docker Images') {
             steps {
                 script {
-                    def services = ["products-api", "orders-api", "payments-api"]
+                    def services = ["ordersvc", "productsvc", "usersvc"]
 
                     for (service in services) {
-                        bat "docker push %REGISTRY%/${service}:latest"
+                        dir("services/${service}") {
+                            sh "docker build -t ${REGISTRY}/${service}:latest ."
+                        }
                     }
                 }
             }
         }
 
-        stage('Deploy with Docker Compose') {
+        stage('Push Docker Images') {
             steps {
                 script {
-                    // Stop previous containers (ignore errors if none running)
-                    bat "docker-compose down || exit 0"
+                    def services = ["ordersvc", "productsvc", "usersvc"]
 
-                    // Start new containers
-                    bat "docker-compose up -d --build"
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
+                        for (service in services) {
+                            sh "docker push ${REGISTRY}/${service}:latest"
+                        }
+                    }
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            echo "Cleaning up workspace..."
-            cleanWs()
         }
     }
 }
