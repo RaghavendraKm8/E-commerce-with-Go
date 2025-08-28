@@ -19,8 +19,8 @@ pipeline {
 
                     for (service in services) {
                         dir("services/${service}") {
-                            sh "go mod tidy"
-                            sh "go build -o service ."
+                            bat "go mod tidy"
+                            bat "go build -o service.exe ."
                         }
                     }
                 }
@@ -34,7 +34,7 @@ pipeline {
 
                     for (service in services) {
                         dir("services/${service}") {
-                            sh "docker build -t ${REGISTRY}/${service}:latest ."
+                            bat "docker build -t %REGISTRY%/${service}:latest ."
                         }
                     }
                 }
@@ -48,7 +48,7 @@ pipeline {
 
                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
                         for (service in services) {
-                            sh "docker push ${REGISTRY}/${service}:latest"
+                            bat "docker push %REGISTRY%/${service}:latest"
                         }
                     }
                 }
