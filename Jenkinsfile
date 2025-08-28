@@ -44,7 +44,6 @@ pipeline {
                 bat '''
                   echo Cleaning up old containers...
                   docker compose -f docker-compose.yml down -v || echo Nothing to stop
-                  docker rm -f usersvc productsvc ordersvc ecom_postgres || echo "No leftovers"
 
                   echo Starting full stack...
                   docker compose -f docker-compose.yml up -d --remove-orphans
@@ -56,7 +55,14 @@ pipeline {
             steps {
                 bat '''
                   echo Waiting for services to be healthy...
-                  timeout 30
+                  for /L %%i in (1,1,30) do (
+                    docker inspect --format "{{.State.Health.Status}}" usersvc 2>nul | findstr "healthy" >nul && ^
+                    docker inspect --format "{{.State.Health.Status}}" productsvc 2>nul | findstr "healthy" >nul && ^
+                    docker inspect --format "{{.State.Health.Status}}" ordersvc 2>nul | findstr "healthy" >nul && exit /b 0
+                    timeout /t 5 >nul
+                  )
+                  echo ❌ Services did not become healthy in time
+                  exit /b 1
                 '''
             }
         }
