@@ -1,81 +1,60 @@
 pipeline {
     agent any
 
+    tools {
+        go 'Go'         // configure Go in Jenkins tools
+    }
+
     environment {
-        DOCKER_BUILDKIT = "1"
-        COMPOSE_DOCKER_CLI_BUILD = "1"
+        DOCKER_CLI_EXPERIMENTAL = "enabled"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'master', url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
             }
         }
 
         stage('Build images') {
             steps {
-                bat '''
-                  echo Building Docker images...
-                  docker compose -f docker-compose.yml build --no-cache
-                '''
+                bat 'echo Building Docker images...'
+                bat 'docker compose -f docker-compose.yml build --no-cache'
             }
         }
 
         stage('Unit tests') {
             steps {
-                bat '''
-                  echo Running Go unit tests (via Docker golang:1.22)...
-
-                  echo === usersvc ===
-                  docker run --rm -v "%WORKSPACE%\\services\\usersvc:/app" -w /app golang:1.22 go test ./...
-
-                  echo === productsvc ===
-                  docker run --rm -v "%WORKSPACE%\\services\\productsvc:/app" -w /app golang:1.22 go test ./...
-
-                  echo === ordersvc ===
-                  docker run --rm -v "%WORKSPACE%\\services\\ordersvc:/app" -w /app golang:1.22 go test ./...
-                '''
+                bat 'go test ./...'
             }
         }
 
         stage('Start stack') {
             steps {
-                bat '''
-                  echo Cleaning up old containers...
-                  docker compose -f docker-compose.yml down -v || echo Nothing to stop
-
-                  echo Starting full stack...
-                  docker compose -f docker-compose.yml up -d --remove-orphans --build
-                '''
+                bat 'docker compose -f docker-compose.yml up -d'
             }
         }
 
         stage('Wait for health') {
             steps {
-                bat '''
-                  echo Waiting for services to be healthy...
-                  docker compose -f docker-compose.yml ps
-                  timeout 40
-                '''
+                script {
+                    sleep(time:30, unit:"SECONDS")
+                }
             }
         }
 
         stage('Integration smoke test') {
             steps {
-                bat '''
-                  echo Running smoke test...
-                  curl -f http://localhost:8081/healthz || exit 1
-                '''
+                bat 'curl -f http://localhost:8081 || exit 1'
+                bat 'curl -f http://localhost:8082 || exit 1'
+                bat 'curl -f http://localhost:8083 || exit 1'
             }
         }
     }
 
     post {
         always {
-            bat '''
-              docker compose -f docker-compose.yml down -v || echo Nothing to clean
-            '''
+            bat 'docker compose -f docker-compose.yml down -v || echo Nothing to clean'
             echo "✅ Cleanup finished"
         }
         failure {

@@ -15,7 +15,7 @@ services:
       - backend
 
   usersvc:
-    build: ./usersvc
+    build: ./services/usersvc
     container_name: usersvc
     depends_on:
       - db
@@ -30,7 +30,7 @@ services:
       - backend
 
   productsvc:
-    build: ./productsvc
+    build: ./services/productsvc
     container_name: productsvc
     depends_on:
       - db
@@ -45,7 +45,7 @@ services:
       - backend
 
   ordersvc:
-    build: ./ordersvc
+    build: ./services/ordersvc
     container_name: ordersvc
     depends_on:
       - db
