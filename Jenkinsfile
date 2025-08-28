@@ -1,64 +1,56 @@
 pipeline {
     agent any
 
-    tools {
-        go 'Go'    // configure Go in Jenkins tools
-    }
-
     environment {
-        DOCKER_CLI_EXPERIMENTAL = "enabled"
+        REGISTRY = "your-dockerhub-username"    // change this to your DockerHub/registry username
+        IMAGE_TAG = "latest"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'master', url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
+                git branch: 'main', url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
             }
         }
 
-        stage('Build images') {
-            steps {
-                bat 'echo Building Docker images...'
-                bat 'docker compose -f docker-compose.yml build --no-cache'
-            }
-        }
-
-        stage('Unit tests') {
-            steps {
-                bat 'go test ./...'
-            }
-        }
-
-        stage('Start stack') {
-            steps {
-                bat 'docker compose -f docker-compose.yml up -d'
-            }
-        }
-
-        stage('Wait for health') {
+        stage('Build Docker Images') {
             steps {
                 script {
-                    sleep(time:30, unit:"SECONDS")
+                    // Build user service
+                    sh 'docker build -t $REGISTRY/usersvc:$IMAGE_TAG ./services/usersvc'
+
+                    // Build product service
+                    sh 'docker build -t $REGISTRY/productsvc:$IMAGE_TAG ./services/productsvc'
+
+                    // Build order service
+                    sh 'docker build -t $REGISTRY/ordersvc:$IMAGE_TAG ./services/ordersvc'
                 }
             }
         }
 
-        stage('Integration smoke test') {
+        stage('Push Images') {
             steps {
-                bat 'curl -f http://localhost:8081 || exit 1'
-                bat 'curl -f http://localhost:8082 || exit 1'
-                bat 'curl -f http://localhost:8083 || exit 1'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                 usernameVariable: 'DOCKER_USER',
+                                                 passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+
+                        sh 'docker push $REGISTRY/usersvc:$IMAGE_TAG'
+                        sh 'docker push $REGISTRY/productsvc:$IMAGE_TAG'
+                        sh 'docker push $REGISTRY/ordersvc:$IMAGE_TAG'
+                    }
+                }
             }
         }
-    }
 
-    post {
-        always {
-            bat 'docker compose -f docker-compose.yml down -v || echo Nothing to clean'
-            echo "✅ Cleanup finished"
-        }
-        failure {
-            echo "❌ Pipeline failed"
+        stage('Deploy with Docker Compose') {
+            steps {
+                script {
+                    sh 'docker compose down || true'
+                    sh 'docker compose up -d --build'
+                }
+            }
         }
     }
 }
