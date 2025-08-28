@@ -2,43 +2,46 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "your-dockerhub-username"    // change this to your DockerHub/registry username
-        IMAGE_TAG = "latest"
+        REGISTRY = "your-dockerhub-username"   // 🔹 change to your DockerHub username
+        APP_NAME = "go-ecommerce"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
+                // Checkout default branch (master)
+                git branch: 'master', url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
             }
         }
 
         stage('Build Docker Images') {
             steps {
                 script {
-                    // Build user service
-                    sh 'docker build -t $REGISTRY/usersvc:$IMAGE_TAG ./services/usersvc'
+                    def services = ["products-api", "orders-api", "payments-api"]
 
-                    // Build product service
-                    sh 'docker build -t $REGISTRY/productsvc:$IMAGE_TAG ./services/productsvc'
-
-                    // Build order service
-                    sh 'docker build -t $REGISTRY/ordersvc:$IMAGE_TAG ./services/ordersvc'
+                    for (service in services) {
+                        dir("services/${service}") {
+                            sh "docker build -t ${REGISTRY}/${service}:latest ."
+                        }
+                    }
                 }
             }
         }
 
         stage('Push Images') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                 usernameVariable: 'DOCKER_USER',
-                                                 passwordVariable: 'DOCKER_PASS')]) {
-                    script {
-                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-hub-credentials', // 🔹 Add in Jenkins Credentials
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
 
-                        sh 'docker push $REGISTRY/usersvc:$IMAGE_TAG'
-                        sh 'docker push $REGISTRY/productsvc:$IMAGE_TAG'
-                        sh 'docker push $REGISTRY/ordersvc:$IMAGE_TAG'
+                        def services = ["products-api", "orders-api", "payments-api"]
+                        for (service in services) {
+                            sh "docker push ${REGISTRY}/${service}:latest"
+                        }
                     }
                 }
             }
@@ -47,10 +50,19 @@ pipeline {
         stage('Deploy with Docker Compose') {
             steps {
                 script {
-                    sh 'docker compose down || true'
-                    sh 'docker compose up -d --build'
+                    sh 'docker-compose down || true'
+                    sh 'docker-compose up -d'
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment successful!"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs!"
         }
     }
 }
