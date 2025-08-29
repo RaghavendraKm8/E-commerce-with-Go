@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_REPO = "Raghavendra Km
+        DOCKER_HUB_REPO = "Raghavendra Km"
     }
 
     stages {
