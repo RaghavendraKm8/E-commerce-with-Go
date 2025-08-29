@@ -11,6 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type User struct {
@@ -20,9 +23,30 @@ type User struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 }
 
-var db *pgxpool.Pool
+var (
+	db *pgxpool.Pool
+
+	httpRequests = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "usersvc_http_requests_total",
+			Help: "Number of HTTP requests received",
+		},
+		[]string{"path", "method"},
+	)
+	httpDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "usersvc_http_request_duration_seconds",
+			Help:    "Duration of HTTP requests",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"path", "method"},
+	)
+)
 
 func main() {
+	// Register Prometheus metrics
+	prometheus.MustRegister(httpRequests, httpDuration)
+
 	// connect DB
 	url := os.Getenv("PG_URL")
 	if url == "" {
@@ -37,11 +61,26 @@ func main() {
 	defer db.Close()
 
 	r := gin.Default()
+
+	// middleware for metrics
+	r.Use(func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		duration := time.Since(start).Seconds()
+		httpRequests.WithLabelValues(c.FullPath(), c.Request.Method).Inc()
+		httpDuration.WithLabelValues(c.FullPath(), c.Request.Method).Observe(duration)
+	})
+
+	// health check
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
+	// business routes
 	r.POST("/users", createUser)
 	r.GET("/users/:id", getUser)
 	r.GET("/users", listUsers)
+
+	// prometheus metrics
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	srv := &http.Server{Addr: ":8081", Handler: r}
 	go srv.ListenAndServe()
