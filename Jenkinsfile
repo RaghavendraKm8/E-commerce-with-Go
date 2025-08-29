@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_HUB_REPO = "RaghavendraKm"  // DockerHub repo (no space!)
+    DOCKER_HUB_REPO = "RaghavendraKm"
     IMAGE_TAG = "latest"
   }
 
@@ -68,7 +68,7 @@ pipeline {
       }
     }
 
-    stage('Push Images') {
+    stage('Docker Login') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'docker-hub-password',
                                          usernameVariable: 'DOCKER_HUB_USER',
@@ -76,6 +76,9 @@ pipeline {
           bat 'echo %DOCKER_HUB_PASS% | docker login -u %DOCKER_HUB_USER% --password-stdin'
         }
       }
+    }
+
+    stage('Push Images') {
       parallel {
         stage('Push ordersvc') {
           steps {
