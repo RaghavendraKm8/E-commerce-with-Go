@@ -2,63 +2,48 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "docker.io"
-        IMAGE_PREFIX = "Raghavendra Km"
+        DOCKER_HUB_REPO = "Raghavendra Km
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git', branch: 'master'
+                checkout scm
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Services') {
             steps {
                 script {
-                    def services = ["orders", "payments", "users"]
-                    services.each { svc ->
-                        sh """
-                          echo "Building image for ${svc}..."
-                          docker build -t ${IMAGE_PREFIX}/${svc}:latest ./services/${svc}
+                    bat 'docker build -t %DOCKER_HUB_REPO%/service1 ./service1'
+                    bat 'docker build -t %DOCKER_HUB_REPO%/service2 ./service2'
+                    bat 'docker build -t %DOCKER_HUB_REPO%/service3 ./service3'
+                }
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-password',
+                                                 usernameVariable: 'DOCKER_HUB_USER',
+                                                 passwordVariable: 'DOCKER_HUB_PASS')]) {
+                    script {
+                        bat """
+                          echo %DOCKER_HUB_PASS% | docker login -u %DOCKER_HUB_USER% --password-stdin
                         """
                     }
                 }
             }
         }
 
-        stage('Push Images to Docker Hub') {
+        stage('Push Images') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-password',
-                                                 usernameVariable: 'DOCKER_HUB_USER',
-                                                 passwordVariable: 'DOCKER_HUB_PASS')]) {
-                    script {
-                        sh '''
-                          echo "$DOCKER_HUB_PASS" | docker login -u "$DOCKER_HUB_USER" --password-stdin
-                        '''
-                        def services = ["orders", "payments", "users"]
-                        services.each { svc ->
-                            sh """
-                              echo "Pushing image for ${svc}..."
-                              docker push ${IMAGE_PREFIX}/${svc}:latest
-                            """
-                        }
-                    }
+                script {
+                    bat 'docker push %DOCKER_HUB_REPO%/service1'
+                    bat 'docker push %DOCKER_HUB_REPO%/service2'
+                    bat 'docker push %DOCKER_HUB_REPO%/service3'
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            echo 'Cleaning up Docker images...'
-            sh 'docker image prune -af || true'
-        }
-        success {
-            echo '✅ Build and push completed successfully!'
-        }
-        failure {
-            echo '❌ Pipeline failed. Check logs above.'
         }
     }
 }
