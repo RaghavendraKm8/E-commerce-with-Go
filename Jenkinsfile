@@ -1,11 +1,14 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_CREDENTIALS = credentials('7022835052')
+    }
+
     stages {
         stage('Checkout') {
             steps {
                 git branch: 'master',
-                    credentialsId: '7022835052',
                     url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
             }
         }
@@ -88,16 +91,24 @@ pipeline {
             }
         }
 
+        stage('Login to DockerHub') {
+            steps {
+                bat """
+                echo ${DOCKER_CREDENTIALS_PSW} | docker login -u ${DOCKER_CREDENTIALS_USR} --password-stdin
+                """
+            }
+        }
+
         stage('Push Images') {
             steps {
                 bat '''
-                docker tag ordersvc:latest your-dockerhub-username/ordersvc:latest
-                docker tag productsvc:latest your-dockerhub-username/productsvc:latest
-                docker tag usersvc:latest your-dockerhub-username/usersvc:latest
+                docker tag ordersvc:latest RaghavendraKm/ordersvc:latest
+                docker tag productsvc:latest RaghavendraKm/productsvc:latest
+                docker tag usersvc:latest RaghavendraKm/usersvc:latest
 
-                docker push your-dockerhub-username/ordersvc:latest
-                docker push your-dockerhub-username/productsvc:latest
-                docker push your-dockerhub-username/usersvc:latest
+                docker push RaghavendraKm/ordersvc:latest
+                docker push RaghavendraKm/productsvc:latest
+                docker push RaghavendraKm/usersvc:latest
                 '''
             }
         }
