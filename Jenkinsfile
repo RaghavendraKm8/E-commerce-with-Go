@@ -1,14 +1,12 @@
 pipeline {
     agent any
 
-    environment {
-        REGISTRY = "docker.io/raghavendrakm"
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'master',
+                    credentialsId: '7022835052',
+                    url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git'
             }
         }
 
@@ -17,24 +15,24 @@ pipeline {
                 stage('Build Order Service') {
                     steps {
                         bat '''
-                            cd ordersvc
-                            go build -o ordersvc.exe
+                        cd services\\ordersvc
+                        go build -o ordersvc.exe
                         '''
                     }
                 }
                 stage('Build Product Service') {
                     steps {
                         bat '''
-                            cd productsvc
-                            go build -o productsvc.exe
+                        cd services\\productsvc
+                        go build -o productsvc.exe
                         '''
                     }
                 }
                 stage('Build User Service') {
                     steps {
                         bat '''
-                            cd usersvc
-                            go build -o usersvc.exe
+                        cd services\\usersvc
+                        go build -o usersvc.exe
                         '''
                     }
                 }
@@ -46,24 +44,24 @@ pipeline {
                 stage('Test Order Service') {
                     steps {
                         bat '''
-                            cd ordersvc
-                            go test ./...
+                        cd services\\ordersvc
+                        go test ./...
                         '''
                     }
                 }
                 stage('Test Product Service') {
                     steps {
                         bat '''
-                            cd productsvc
-                            go test ./...
+                        cd services\\productsvc
+                        go test ./...
                         '''
                     }
                 }
                 stage('Test User Service') {
                     steps {
                         bat '''
-                            cd usersvc
-                            go test ./...
+                        cd services\\usersvc
+                        go test ./...
                         '''
                     }
                 }
@@ -74,23 +72,17 @@ pipeline {
             parallel {
                 stage('Order Service Image') {
                     steps {
-                        bat '''
-                            docker build -t %REGISTRY%/ordersvc:latest ./ordersvc
-                        '''
+                        bat 'docker build -t ordersvc:latest ./services/ordersvc'
                     }
                 }
                 stage('Product Service Image') {
                     steps {
-                        bat '''
-                            docker build -t %REGISTRY%/productsvc:latest ./productsvc
-                        '''
+                        bat 'docker build -t productsvc:latest ./services/productsvc'
                     }
                 }
                 stage('User Service Image') {
                     steps {
-                        bat '''
-                            docker build -t %REGISTRY%/usersvc:latest ./usersvc
-                        '''
+                        bat 'docker build -t usersvc:latest ./services/usersvc'
                     }
                 }
             }
@@ -98,18 +90,15 @@ pipeline {
 
         stage('Push Images') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: '7022835052',   // ✅ Your actual Jenkins credential ID
-                    usernameVariable: 'DOCKER_HUB_USER',
-                    passwordVariable: 'DOCKER_HUB_PASS'
-                )]) {
-                    bat '''
-                        echo %DOCKER_HUB_PASS% | docker login -u %DOCKER_HUB_USER% --password-stdin
-                        docker push %REGISTRY%/ordersvc:latest
-                        docker push %REGISTRY%/productsvc:latest
-                        docker push %REGISTRY%/usersvc:latest
-                    '''
-                }
+                bat '''
+                docker tag ordersvc:latest your-dockerhub-username/ordersvc:latest
+                docker tag productsvc:latest your-dockerhub-username/productsvc:latest
+                docker tag usersvc:latest your-dockerhub-username/usersvc:latest
+
+                docker push your-dockerhub-username/ordersvc:latest
+                docker push your-dockerhub-username/productsvc:latest
+                docker push your-dockerhub-username/usersvc:latest
+                '''
             }
         }
     }
