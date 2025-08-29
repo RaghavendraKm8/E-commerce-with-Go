@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_REPO = "Raghavendra Km"
+        DOCKER_HUB_REPO = "raghavendrakam" 
     }
 
     stages {
@@ -15,9 +15,9 @@ pipeline {
         stage('Build Services') {
             steps {
                 script {
-                    bat 'docker build -t %DOCKER_HUB_REPO%/service1 ./service1'
-                    bat 'docker build -t %DOCKER_HUB_REPO%/service2 ./service2'
-                    bat 'docker build -t %DOCKER_HUB_REPO%/service3 ./service3'
+                    bat "docker build -t %DOCKER_HUB_REPO%/service1 ./service1"
+                    bat "docker build -t %DOCKER_HUB_REPO%/service2 ./service2"
+                    bat "docker build -t %DOCKER_HUB_REPO%/service3 ./service3"
                 }
             }
         }
@@ -39,9 +39,9 @@ pipeline {
         stage('Push Images') {
             steps {
                 script {
-                    bat 'docker push %DOCKER_HUB_REPO%/service1'
-                    bat 'docker push %DOCKER_HUB_REPO%/service2'
-                    bat 'docker push %DOCKER_HUB_REPO%/service3'
+                    bat "docker push %DOCKER_HUB_REPO%/service1"
+                    bat "docker push %DOCKER_HUB_REPO%/service2"
+                    bat "docker push %DOCKER_HUB_REPO%/service3"
                 }
             }
         }
