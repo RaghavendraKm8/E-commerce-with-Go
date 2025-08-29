@@ -2,70 +2,63 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_USER = "your-dockerhub-username"
-        DOCKER_HUB_PASS = credentials('docker-hub-password') // <-- ID must exist in Jenkins
+        REGISTRY = "docker.io"
+        IMAGE_PREFIX = "Raghavendra Km"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Build Go Services') {
-            steps {
-                script {
-                    dir("services/ordersvc") {
-                        bat "go mod tidy"
-                        bat "go build -o service.exe ."
-                    }
-                    dir("services/productsvc") {
-                        bat "go mod tidy"
-                        bat "go build -o service.exe ."
-                    }
-                    dir("services/usersvc") {
-                        bat "go mod tidy"
-                        bat "go build -o service.exe ."
-                    }
-                }
+                git url: 'https://github.com/RaghavendraKm8/E-commerce-with-Go.git', branch: 'master'
             }
         }
 
         stage('Build Docker Images') {
             steps {
                 script {
-                    dir("services/ordersvc") {
-                        bat "docker build -t ${DOCKER_HUB_USER}/ordersvc:latest ."
-                    }
-                    dir("services/productsvc") {
-                        bat "docker build -t ${DOCKER_HUB_USER}/productsvc:latest ."
-                    }
-                    dir("services/usersvc") {
-                        bat "docker build -t ${DOCKER_HUB_USER}/usersvc:latest ."
+                    def services = ["orders", "payments", "users"]
+                    services.each { svc ->
+                        sh """
+                          echo "Building image for ${svc}..."
+                          docker build -t ${IMAGE_PREFIX}/${svc}:latest ./services/${svc}
+                        """
                     }
                 }
             }
         }
 
-        stage('Push Docker Images') {
+        stage('Push Images to Docker Hub') {
             steps {
-                script {
-                    bat "docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}"
-                    bat "docker push ${DOCKER_HUB_USER}/ordersvc:latest"
-                    bat "docker push ${DOCKER_HUB_USER}/productsvc:latest"
-                    bat "docker push ${DOCKER_HUB_USER}/usersvc:latest"
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-password',
+                                                 usernameVariable: 'DOCKER_HUB_USER',
+                                                 passwordVariable: 'DOCKER_HUB_PASS')]) {
+                    script {
+                        sh '''
+                          echo "$DOCKER_HUB_PASS" | docker login -u "$DOCKER_HUB_USER" --password-stdin
+                        '''
+                        def services = ["orders", "payments", "users"]
+                        services.each { svc ->
+                            sh """
+                              echo "Pushing image for ${svc}..."
+                              docker push ${IMAGE_PREFIX}/${svc}:latest
+                            """
+                        }
+                    }
                 }
             }
         }
+    }
 
-        stage('Deploy with Docker Compose') {
-            steps {
-                script {
-                    bat "docker-compose down || echo 'No containers to stop'"
-                    bat "docker-compose up -d"
-                }
-            }
+    post {
+        always {
+            echo 'Cleaning up Docker images...'
+            sh 'docker image prune -af || true'
+        }
+        success {
+            echo '✅ Build and push completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed. Check logs above.'
         }
     }
 }
