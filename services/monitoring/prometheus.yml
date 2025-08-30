@@ -10,14 +10,14 @@ scrape_configs:
   # Scrape User Service
   - job_name: "usersvc"
     static_configs:
-      - targets: ["usersvc:8080"]
+      - targets: ["usersvc:8081"]
 
   # Scrape Product Service
   - job_name: "productsvc"
     static_configs:
-      - targets: ["productsvc:8080"]
+      - targets: ["productsvc:8082"]
 
   # Scrape Order Service
   - job_name: "ordersvc"
     static_configs:
-      - targets: ["ordersvc:8080"]
+      - targets: ["ordersvc:8083"]
